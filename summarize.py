@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """AI summarization of UWorld questions using Claude API."""
 
-import json
+import html as html_lib
 import os
 import time
 
@@ -10,6 +10,25 @@ import anthropic
 PROMPT_PATH = os.path.join(os.path.dirname(__file__), "prompts", "summarize.md")
 MODEL = "claude-haiku-4-5"
 MAX_RETRIES = 3
+
+SUMMARIZE_TOOL = {
+    "name": "save_flashcard",
+    "description": "Save the condensed Anki flashcard with front and back content in HTML format",
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "front": {
+                "type": "string",
+                "description": "Condensed NBME-style question stem in HTML format",
+            },
+            "back": {
+                "type": "string",
+                "description": "Structured answer with reasoning, differentials, and key rule in HTML format",
+            },
+        },
+        "required": ["front", "back"],
+    },
+}
 
 
 def load_prompt():
@@ -47,16 +66,8 @@ def build_user_message(question):
 {explanation_content}"""
 
 
-def parse_response(text):
-    """Parse JSON from Claude's response, handling markdown code blocks."""
-    text = text.strip()
-    if text.startswith("```"):
-        text = text.split("\n", 1)[1].rsplit("```", 1)[0].strip()
-    return json.loads(text)
-
-
 def summarize_question(client, question, system_prompt):
-    """Call Claude API to summarize a single question, with retry on rate limit."""
+    """Call Claude API to summarize a single question using tool use."""
     for attempt in range(MAX_RETRIES):
         try:
             response = client.messages.create(
@@ -64,8 +75,14 @@ def summarize_question(client, question, system_prompt):
                 max_tokens=2048,
                 system=system_prompt,
                 messages=[{"role": "user", "content": build_user_message(question)}],
+                tools=[SUMMARIZE_TOOL],
+                tool_choice={"type": "tool", "name": "save_flashcard"},
             )
-            return parse_response(response.content[0].text)
+            result = response.content[0].input
+            return {
+                "front": html_lib.unescape(result.get("front", "")),
+                "back": html_lib.unescape(result.get("back", "")),
+            }
         except anthropic.RateLimitError:
             if attempt < MAX_RETRIES - 1:
                 wait = 15 * (attempt + 1)

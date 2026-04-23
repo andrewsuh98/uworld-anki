@@ -114,9 +114,10 @@ Questions are saved to `data/question_bank.json` and accumulate across sessions.
 To regenerate decks without opening a browser:
 
 ```
-uv run python generate_deck.py              # full deck
-uv run python generate_deck.py --condensed  # condensed deck
+uv run python generate_deck.py
 ```
+
+This always generates the full deck. If AI summaries exist in the question bank, it also generates the condensed deck automatically.
 
 ## Re-importing
 
