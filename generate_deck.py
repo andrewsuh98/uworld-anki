@@ -210,6 +210,52 @@ CONDENSED_CSS = """\
   font-size: 13px;
   margin-bottom: 10px;
 }
+details.full-view {
+  margin-top: 16px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  overflow: hidden;
+}
+details.full-view summary {
+  cursor: pointer;
+  padding: 8px 12px;
+  background: #f5f5f5;
+  font-weight: bold;
+  font-size: 13px;
+  color: #555;
+  user-select: none;
+}
+details.full-view summary:hover {
+  background: #eee;
+}
+details.full-view .full-content {
+  padding: 12px;
+  border-top: 1px solid #ddd;
+  font-size: 14px;
+}
+details.full-view .full-content img {
+  max-width: 100%;
+  height: auto;
+}
+details.full-view .full-content .choice-item { padding: 4px 0; }
+details.full-view .full-content .choice-correct { color: #2e7d32; font-weight: bold; }
+details.full-view .full-content .edu-objective {
+  background: #f5f5f5;
+  padding: 12px;
+  border-left: 3px solid #1976d2;
+  margin: 14px 0;
+}
+details.full-view .full-content table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 12px 0;
+  font-size: 14px;
+}
+details.full-view .full-content td, details.full-view .full-content th {
+  border: 1px solid #ccc;
+  padding: 6px 10px;
+  vertical-align: top;
+}
 .night_mode .condensed-card {
   color: #e0e0e0;
 }
@@ -220,6 +266,17 @@ CONDENSED_CSS = """\
   background: #2a3050;
   color: #90a4f8;
 }
+.night_mode details.full-view { border-color: #444; }
+.night_mode details.full-view summary { background: #2a2a3a; color: #aaa; }
+.night_mode details.full-view summary:hover { background: #333344; }
+.night_mode details.full-view .full-content { border-top-color: #444; }
+.night_mode details.full-view .full-content .choice-correct { color: #66bb6a; }
+.night_mode details.full-view .full-content .edu-objective {
+  background: #1e1e2e;
+  border-left-color: #5c8fd6;
+}
+.night_mode details.full-view .full-content td,
+.night_mode details.full-view .full-content th { border-color: #555; }
 """
 
 CONDENSED_FRONT = """\
@@ -235,6 +292,18 @@ CONDENSED_BACK = """\
   <div><span class="topic-tag">{{Topic}}</span></div>
   <div class="correct-answer">{{CorrectAnswer}}</div>
   <div>{{BackSummary}}</div>
+  <details class="full-view">
+    <summary>View Full Question & Explanation</summary>
+    <div class="full-content">
+      <div>{{QuestionHTML}}</div>
+      <div>{{ChoicesBack}}</div>
+      <hr>
+      <div class="edu-objective">
+        <strong>Educational Objective:</strong><br>{{EducationalObjective}}
+      </div>
+      <div>{{ExplanationHTML}}</div>
+    </div>
+  </details>
 </div>
 """
 
@@ -249,6 +318,10 @@ def create_condensed_model():
             {"name": "BackSummary"},
             {"name": "CorrectAnswer"},
             {"name": "Topic"},
+            {"name": "QuestionHTML"},
+            {"name": "ChoicesBack"},
+            {"name": "EducationalObjective"},
+            {"name": "ExplanationHTML"},
         ],
         templates=[
             {
@@ -266,6 +339,9 @@ def generate_condensed_deck(questions, output_path="output/uworld_condensed.apkg
     """Generate a condensed Anki deck from AI-summarized questions."""
     model = create_condensed_model()
     deck = genanki.Deck(CONDENSED_DECK_ID, deck_name)
+    media_files = set()
+    media_dir = "media"
+    os.makedirs(media_dir, exist_ok=True)
     skipped = 0
 
     for q in questions:
@@ -275,6 +351,9 @@ def generate_condensed_deck(questions, output_path="output/uworld_condensed.apkg
             continue
 
         tags = build_tags(q)
+        question_html = process_images(q.get("questionHtml", ""), media_files, media_dir)
+        explanation_html = process_images(q.get("explanationHtml", ""), media_files, media_dir)
+        choices_back = format_choices_back(q.get("choices", []))
 
         note = CondensedNote(
             model=model,
@@ -284,6 +363,10 @@ def generate_condensed_deck(questions, output_path="output/uworld_condensed.apkg
                 summary.get("back", ""),
                 q.get("correctAnswer", ""),
                 q.get("topic", ""),
+                question_html,
+                choices_back,
+                q.get("educationalObjective", ""),
+                explanation_html,
             ],
             tags=tags,
         )
@@ -291,10 +374,11 @@ def generate_condensed_deck(questions, output_path="output/uworld_condensed.apkg
 
     os.makedirs(os.path.dirname(output_path) or ".", exist_ok=True)
     package = genanki.Package(deck)
+    package.media_files = list(media_files)
     package.write_to_file(output_path)
 
     generated = len(questions) - skipped
-    print(f"Generated {generated} condensed notes.")
+    print(f"Generated {generated} condensed notes, {len(media_files)} images embedded.")
     if skipped:
         print(f"  ({skipped} questions skipped, no AI summary)")
     print(f"Output: {output_path}")
