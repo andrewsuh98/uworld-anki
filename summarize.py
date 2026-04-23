@@ -20,8 +20,13 @@ def build_user_message(question):
     choices_text = "\n".join(
         f"  {c['letter']}. {c['text']}" for c in question.get("choices", [])
     )
+
+    # Use HTML versions to preserve tables and image references
+    question_content = question.get("questionHtml", "") or question.get("questionPlain", "")
+    explanation_content = question.get("explanationHtml", "") or question.get("explanationPlain", "")
+
     return f"""## Question
-{question.get("questionPlain", "")}
+{question_content}
 
 ## Answer Choices
 {choices_text}
@@ -33,14 +38,14 @@ def build_user_message(question):
 {question.get("educationalObjective", "")}
 
 ## Explanation
-{question.get("explanationPlain", "")}"""
+{explanation_content}"""
 
 
 def summarize_question(client, question, system_prompt):
     """Call Claude API to summarize a single question."""
     response = client.messages.create(
         model=MODEL,
-        max_tokens=1024,
+        max_tokens=2048,
         system=system_prompt,
         messages=[{"role": "user", "content": build_user_message(question)}],
     )
@@ -83,3 +88,15 @@ def summarize_new_questions(questions):
 
     print(f"  Summarized {count} of {len(to_summarize)} questions.")
     return count
+
+
+if __name__ == "__main__":
+    from run import load_dotenv, load_question_bank, save_question_bank
+
+    load_dotenv()
+    questions, _ = load_question_bank()
+    count = summarize_new_questions(questions)
+    if count > 0:
+        save_question_bank(questions)
+        print(f"Question bank saved.")
+    print(f"Total: {len(questions)} questions, {sum(1 for q in questions if q.get('aiSummary'))} with AI summaries.")
