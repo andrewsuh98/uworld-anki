@@ -92,7 +92,7 @@ def main():
             viewport={"width": 1400, "height": 900},
         )
         page = context.new_page()
-        page.goto("https://apps.uworld.com")
+        page.goto("https://uworld.com/app/index.html#/login/")
 
         print("Browser opened. Log in to UWorld and navigate to a test review page.")
         print()
