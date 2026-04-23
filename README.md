@@ -67,6 +67,18 @@ When the API key is set, the script will:
 
 The condensed cards have shorter question stems and focused answer explanations, optimized for quick review. The prompt is in `prompts/summarize.md` and can be edited to tune the output.
 
+To run summarization separately (without opening the browser):
+
+```
+uv run python summarize.py
+```
+
+To re-summarize all questions (e.g., after editing the prompt):
+
+```
+uv run python summarize.py --resummarize
+```
+
 ## What Gets Extracted
 
 - Question stem (full clinical vignette with lab tables)
