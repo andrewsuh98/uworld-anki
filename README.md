@@ -19,6 +19,12 @@ cd uworld-anki
 uv run run.py
 ```
 
+If your Mac sleeps, the browser connection will drop and the session will break. To prevent this:
+
+```
+caffeinate -i uv run run.py
+```
+
 On first run, this will:
 
 1. Install Python (if needed)
