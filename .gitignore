@@ -4,3 +4,11 @@ uworld_rendered.html
 
 # Extracted question data (personal/copyrighted content)
 questions.json
+
+# Generated output
+media/
+output/
+*.apkg
+
+# Python
+.venv/
