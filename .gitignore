@@ -1,3 +1,6 @@
+# macOS
+.DS_Store
+
 # Raw HTML dumps (large, personal data)
 uworld_page.html
 uworld_rendered.html

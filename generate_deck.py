@@ -111,9 +111,8 @@ img {
 
 CARD1_FRONT = """\
 <div class="uworld-card">
-  <div><span class="topic-tag">{{Topic}}</span></div>
   <div class="question-stem">{{QuestionHTML}}</div>
-  <div class="choices">{{Choices}}</div>
+  <div class="choices">{{ChoicesFront}}</div>
 </div>
 """
 
@@ -121,17 +120,15 @@ CARD1_BACK = """\
 <div class="uworld-card">
   <div><span class="topic-tag">{{Topic}}</span></div>
   <div class="question-stem">{{QuestionHTML}}</div>
-  <div class="choices">{{Choices}}</div>
+  <div class="choices">{{ChoicesBack}}</div>
   <hr>
   <div class="correct-answer">{{CorrectAnswer}}</div>
   <div class="your-answer {{WasCorrectClass}}">You answered: {{YourAnswer}}</div>
   <div class="edu-objective">
     <strong>Educational Objective:</strong><br>{{EducationalObjective}}
   </div>
-  <details>
-    <summary>Full Explanation</summary>
-    <div class="explanation">{{ExplanationHTML}}</div>
-  </details>
+  <div class="explanation-header"><strong>Full Explanation</strong></div>
+  <div class="explanation">{{ExplanationHTML}}</div>
 </div>
 """
 
@@ -160,7 +157,8 @@ def create_model():
         fields=[
             {"name": "QuestionID"},
             {"name": "QuestionHTML"},
-            {"name": "Choices"},
+            {"name": "ChoicesFront"},
+            {"name": "ChoicesBack"},
             {"name": "CorrectAnswer"},
             {"name": "EducationalObjective"},
             {"name": "ExplanationHTML"},
@@ -233,16 +231,25 @@ def extract_summary_table(explanation_html):
     return match.group(0) if match else ""
 
 
-def format_choices(choices):
-    """Format answer choices as HTML."""
+def format_choices_front(choices):
+    """Format answer choices for the card front (no hints)."""
     lines = []
     for c in choices:
-        text = c["text"]
+        lines.append(
+            f'<div class="choice-item"><b>{c["letter"]}.</b> {c["text"]}</div>'
+        )
+    return "\n".join(lines)
+
+
+def format_choices_back(choices):
+    """Format answer choices for the card back (with percentages and correct marker)."""
+    lines = []
+    for c in choices:
         pct = f" ({c['percentage']}%)" if c.get("percentage") is not None else ""
         css_class = "choice-item choice-correct" if c["isCorrect"] else "choice-item"
         mark = " [correct]" if c["isCorrect"] else ""
         lines.append(
-            f'<div class="{css_class}"><b>{c["letter"]}.</b> {text}{pct}{mark}</div>'
+            f'<div class="{css_class}"><b>{c["letter"]}.</b> {c["text"]}{pct}{mark}</div>'
         )
     return "\n".join(lines)
 
@@ -287,7 +294,8 @@ def main():
         question_html = process_images(q.get("questionHtml", ""), media_files, media_dir)
         explanation_html = process_images(q.get("explanationHtml", ""), media_files, media_dir)
         summary_table = extract_summary_table(explanation_html)
-        choices_html = format_choices(q.get("choices", []))
+        choices_front = format_choices_front(q.get("choices", []))
+        choices_back = format_choices_back(q.get("choices", []))
         tags = build_tags(q)
 
         correct_answer = q.get("correctAnswer", "")
@@ -299,7 +307,8 @@ def main():
             fields=[
                 q.get("questionId", ""),
                 question_html,
-                choices_html,
+                choices_front,
+                choices_back,
                 correct_answer,
                 q.get("educationalObjective", ""),
                 explanation_html,
