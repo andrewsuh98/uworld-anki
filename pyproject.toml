@@ -1,0 +1,10 @@
+[project]
+name = "uworld-anki"
+version = "0.1.0"
+description = "Extract UWorld questions and generate Anki flashcard decks"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "genanki>=0.13.0",
+    "playwright>=1.40.0",
+]
