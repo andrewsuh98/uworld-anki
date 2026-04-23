@@ -21,31 +21,27 @@ function extractCurrentQuestion() {
   const questionHtml = questionTextEl ? questionTextEl.innerHTML.trim() : '';
   const questionPlain = questionTextEl ? questionTextEl.innerText.trim() : '';
 
-  // Answer choices
+  // Answer choices - use aria-label on radio inputs (most reliable)
   const choices = [];
-  const answerRows = document.querySelectorAll('#answerContainer tr');
-  answerRows.forEach((row) => {
-    const letterEl = row.querySelector('.left-td span:last-child');
-    const letter = letterEl ? letterEl.textContent.trim().replace('.', '') : '';
+  const radioInputs = document.querySelectorAll(
+    '#answerContainer input[type="radio"]'
+  );
+  radioInputs.forEach((input, idx) => {
+    const ariaLabel = input.getAttribute('aria-label') || '';
+    // aria-label format: "option1Alcoholic hepatitis"
+    const textMatch = ariaLabel.match(/^option\d+(.+)$/);
+    const answerText = textMatch ? textMatch[1] : '';
+    const letter = String.fromCharCode(65 + idx); // A, B, C, ...
 
-    const answerEl = row.querySelector('.answer-choice-content span[id^="answerhighlight"] span');
-    const answerText = answerEl ? answerEl.textContent.trim() : '';
+    const row = input.closest('tr');
+    const isCorrect = row ? !!row.querySelector('.fa-check') : false;
+    const isSelected = row ? !!row.querySelector('.mat-radio-checked') : false;
 
-    // Percentage chosen
-    const contentTd = row.querySelector('.answer-choice-content');
+    const contentTd = row ? row.querySelector('.answer-choice-content') : null;
     const pctMatch = contentTd ? contentTd.textContent.match(/\((\d+)%\)/) : null;
     const percentage = pctMatch ? parseInt(pctMatch[1]) : null;
 
-    // Is this the correct answer? (has check icon)
-    const isCorrect = !!row.querySelector('.fa-check');
-
-    // Is this the user's selected answer? (has radio checked)
-    const isSelected = !!row.querySelector('.mat-radio-checked');
-
-    // Is this wrong? (has X icon)
-    const isWrong = !!row.querySelector('.fa-times');
-
-    if (letter && answerText) {
+    if (answerText) {
       choices.push({
         letter,
         text: answerText,
