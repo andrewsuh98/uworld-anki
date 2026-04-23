@@ -15,12 +15,12 @@ That's the only prerequisite. `uv` handles Python, dependencies, and browser ins
 ## Usage
 
 ```
-git clone <repo>
 cd uworld-anki
 uv run run.py
 ```
 
 On first run, this will:
+
 1. Install Python (if needed)
 2. Install dependencies (genanki, playwright)
 3. Download Chromium browser
@@ -53,6 +53,20 @@ Saved to: output/uworld_deck.apkg
 
 Import `output/uworld_deck.apkg` into Anki via File > Import.
 
+## AI Condensed Cards (Optional)
+
+Set your Anthropic API key to also generate a condensed deck with AI-summarized cards:
+
+```
+echo "ANTHROPIC_API_KEY=your-key" > .env
+```
+
+When the API key is set, the script will:
+1. Summarize new questions using Claude (only new ones, not the full bank)
+2. Generate a second deck: `output/uworld_condensed.apkg`
+
+The condensed cards have shorter question stems and focused answer explanations, optimized for quick review. The prompt is in `prompts/summarize.md` and can be edited to tune the output.
+
 ## What Gets Extracted
 
 - Question stem (full clinical vignette with lab tables)
@@ -64,14 +78,18 @@ Import `output/uworld_deck.apkg` into Anki via File > Import.
 
 ## Flashcard Structure
 
-Each question generates one card:
-
+**Full deck** (one card per question):
 - Front: clinical vignette + answer choices (no hints)
 - Back: correct answer, your answer, educational objective, full explanation
+
+**Condensed deck** (optional, requires API key):
+- Front: AI-condensed question stem (key details only)
+- Back: diagnosis + key reasoning points
 
 ## Tags
 
 Cards are tagged for filtering in Anki:
+
 - `Subject::Surgery`, `Subject::Internal_Medicine`, etc.
 - `System::Gastrointestinal_&_Nutrition`, etc.
 - `Topic::Autoimmune_hepatitis`, etc.

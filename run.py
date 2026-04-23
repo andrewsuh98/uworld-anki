@@ -6,6 +6,21 @@ import os
 import subprocess
 import sys
 
+
+def load_dotenv():
+    """Load .env file into environment if it exists."""
+    env_path = os.path.join(os.path.dirname(__file__), ".env")
+    if os.path.exists(env_path):
+        with open(env_path) as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith("#") and "=" in line:
+                    key, value = line.split("=", 1)
+                    os.environ.setdefault(key.strip(), value.strip())
+
+
+load_dotenv()
+
 from playwright.sync_api import sync_playwright
 
 from generate_deck import (
@@ -15,8 +30,10 @@ from generate_deck import (
     create_model,
     format_choices_back,
     format_choices_front,
+    generate_condensed_deck,
     process_images,
 )
+from summarize import summarize_new_questions
 import genanki
 
 EXTRACT_JS_PATH = os.path.join(os.path.dirname(__file__), "extract_all_questions.js")
@@ -203,16 +220,38 @@ def main():
 
         browser.close()
 
+    # AI summarization (if API key is set)
     print()
-    print("Downloading images and generating deck...")
+    if os.environ.get("ANTHROPIC_API_KEY"):
+        print("Running AI summarization...")
+        summarized_count = summarize_new_questions(all_questions)
+        if summarized_count > 0:
+            save_question_bank(all_questions)
+    else:
+        print("ANTHROPIC_API_KEY not set. Skipping AI summarization.")
+        print("  Set it to generate condensed cards: export ANTHROPIC_API_KEY=your-key")
+
+    # Generate full deck
+    print()
+    print("Generating full deck...")
     output_path = "output/uworld_deck.apkg"
     image_count = generate_deck(all_questions, output_path)
 
+    # Generate condensed deck (if any summaries exist)
+    has_summaries = any(q.get("aiSummary") for q in all_questions)
+    if has_summaries:
+        print()
+        print("Generating condensed deck...")
+        condensed_path = "output/uworld_condensed.apkg"
+        generate_condensed_deck(all_questions, condensed_path)
+
     print()
-    print(f"Done! {len(all_questions)} notes in deck ({new_this_session} new this session), {image_count} images embedded.")
-    print(f"Saved to: {output_path}")
+    print(f"Done! {len(all_questions)} questions ({new_this_session} new this session), {image_count} images.")
+    print(f"Full deck: output/uworld_deck.apkg")
+    if has_summaries:
+        print(f"Condensed deck: output/uworld_condensed.apkg")
     print()
-    print("Import into Anki: File > Import > select the .apkg file")
+    print("Import into Anki: File > Import > select the .apkg files")
 
 
 if __name__ == "__main__":

@@ -14,6 +14,8 @@ import genanki
 # Stable IDs (generated once, never change these)
 MODEL_ID = 1607392319
 DECK_ID = 2044571848
+CONDENSED_MODEL_ID = 1834927156
+CONDENSED_DECK_ID = 1592048371
 
 CSS = """\
 .uworld-card {
@@ -177,6 +179,124 @@ class UWorldNote(genanki.Note):
     @property
     def guid(self):
         return genanki.guid_for("uworld", self.fields[0])
+
+
+class CondensedNote(genanki.Note):
+    @property
+    def guid(self):
+        return genanki.guid_for("uworld-condensed", self.fields[0])
+
+
+CONDENSED_CSS = """\
+.condensed-card {
+  font-family: -apple-system, system-ui, "Segoe UI", sans-serif;
+  max-width: 600px;
+  margin: 0 auto;
+  line-height: 1.6;
+  font-size: 15px;
+  color: #1a1a1a;
+}
+.correct-answer {
+  color: #2e7d32;
+  font-weight: bold;
+  margin-bottom: 8px;
+}
+.topic-tag {
+  display: inline-block;
+  background: #e8eaf6;
+  color: #283593;
+  padding: 2px 10px;
+  border-radius: 12px;
+  font-size: 13px;
+  margin-bottom: 10px;
+}
+.night_mode .condensed-card {
+  color: #e0e0e0;
+}
+.night_mode .correct-answer {
+  color: #66bb6a;
+}
+.night_mode .topic-tag {
+  background: #2a3050;
+  color: #90a4f8;
+}
+"""
+
+CONDENSED_FRONT = """\
+<div class="condensed-card">
+  {{FrontSummary}}
+</div>
+"""
+
+CONDENSED_BACK = """\
+<div class="condensed-card">
+  <div><span class="topic-tag">{{Topic}}</span></div>
+  <div class="correct-answer">{{CorrectAnswer}}</div>
+  <div>{{BackSummary}}</div>
+</div>
+"""
+
+
+def create_condensed_model():
+    return genanki.Model(
+        CONDENSED_MODEL_ID,
+        "UWorld USMLE Condensed",
+        fields=[
+            {"name": "QuestionID"},
+            {"name": "FrontSummary"},
+            {"name": "BackSummary"},
+            {"name": "CorrectAnswer"},
+            {"name": "Topic"},
+        ],
+        templates=[
+            {
+                "name": "Condensed Q&A",
+                "qfmt": CONDENSED_FRONT,
+                "afmt": CONDENSED_BACK,
+            },
+        ],
+        css=CONDENSED_CSS,
+    )
+
+
+def generate_condensed_deck(questions, output_path="output/uworld_condensed.apkg",
+                            deck_name="UWorld USMLE Condensed"):
+    """Generate a condensed Anki deck from AI-summarized questions."""
+    model = create_condensed_model()
+    deck = genanki.Deck(CONDENSED_DECK_ID, deck_name)
+    skipped = 0
+
+    for q in questions:
+        summary = q.get("aiSummary")
+        if not summary:
+            skipped += 1
+            continue
+
+        tags = build_tags(q)
+
+        note = CondensedNote(
+            model=model,
+            fields=[
+                q.get("questionId", ""),
+                summary.get("front", ""),
+                summary.get("back", ""),
+                q.get("correctAnswer", ""),
+                q.get("topic", ""),
+            ],
+            tags=tags,
+        )
+        deck.add_note(note)
+
+    os.makedirs(os.path.dirname(output_path) or ".", exist_ok=True)
+    package = genanki.Package(deck)
+    package.write_to_file(output_path)
+
+    generated = len(questions) - skipped
+    print(f"Generated {generated} condensed notes.")
+    if skipped:
+        print(f"  ({skipped} questions skipped, no AI summary)")
+    print(f"Output: {output_path}")
+    return generated
 
 
 def process_images(html, media_files, media_dir):
