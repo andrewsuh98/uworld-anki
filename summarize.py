@@ -126,7 +126,8 @@ def summarize_new_questions(questions):
 
 if __name__ == "__main__":
     import argparse
-    from run import load_dotenv, load_question_bank, save_question_bank
+    from dotenv import load_dotenv
+    from run import load_question_bank, save_question_bank
 
     parser = argparse.ArgumentParser(
         description="Summarize UWorld questions with Claude AI"
