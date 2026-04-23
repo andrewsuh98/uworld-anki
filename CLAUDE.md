@@ -36,6 +36,11 @@ Extract UWorld USMLE test review questions and generate Anki flashcard decks. Us
 - `uv run run.py` - Full workflow (browser + extraction + deck generation)
 - `uv run python generate_deck.py` - Regenerate deck from existing question bank without opening a browser
 
+## Environment Setup
+
+- Create `.env` with `ANTHROPIC_API_KEY=<your-key>` (required only for AI summarization)
+- Install Playwright browsers: `uv run playwright install chromium`
+
 ## Conventions
 
 - No emojis
