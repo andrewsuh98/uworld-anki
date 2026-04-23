@@ -8,7 +8,7 @@ import time
 import anthropic
 
 PROMPT_PATH = os.path.join(os.path.dirname(__file__), "prompts", "summarize.md")
-MODEL = "claude-sonnet-4-6"
+MODEL = "claude-haiku-4-5"
 MAX_RETRIES = 3
 
 
@@ -24,8 +24,12 @@ def build_user_message(question):
     )
 
     # Use HTML versions to preserve tables and image references
-    question_content = question.get("questionHtml", "") or question.get("questionPlain", "")
-    explanation_content = question.get("explanationHtml", "") or question.get("explanationPlain", "")
+    question_content = question.get("questionHtml", "") or question.get(
+        "questionPlain", ""
+    )
+    explanation_content = question.get("explanationHtml", "") or question.get(
+        "explanationPlain", ""
+    )
 
     return f"""## Question
 {question_content}
@@ -88,7 +92,9 @@ def summarize_new_questions(questions):
     for i, q in enumerate(to_summarize):
         qid = q.get("questionId", "?")
         topic = q.get("topic", "?")
-        print(f"    [{i + 1}/{len(to_summarize)}] Q{qid} ({topic})...", end="", flush=True)
+        print(
+            f"    [{i + 1}/{len(to_summarize)}] Q{qid} ({topic})...", end="", flush=True
+        )
         try:
             summary = summarize_question(client, q, system_prompt)
             q["aiSummary"] = summary
@@ -105,10 +111,13 @@ if __name__ == "__main__":
     import argparse
     from run import load_dotenv, load_question_bank, save_question_bank
 
-    parser = argparse.ArgumentParser(description="Summarize UWorld questions with Claude AI")
+    parser = argparse.ArgumentParser(
+        description="Summarize UWorld questions with Claude AI"
+    )
     parser.add_argument(
-        "--resummarize", action="store_true",
-        help="Clear existing summaries and re-summarize all questions"
+        "--resummarize",
+        action="store_true",
+        help="Clear existing summaries and re-summarize all questions",
     )
     args = parser.parse_args()
 
@@ -125,4 +134,6 @@ if __name__ == "__main__":
     if count > 0:
         save_question_bank(questions)
         print("Question bank saved.")
-    print(f"Total: {len(questions)} questions, {sum(1 for q in questions if q.get('aiSummary'))} with AI summaries.")
+    print(
+        f"Total: {len(questions)} questions, {sum(1 for q in questions if q.get('aiSummary'))} with AI summaries."
+    )
