@@ -390,29 +390,15 @@ def build_tags(question):
     return tags
 
 
-def main():
-    parser = argparse.ArgumentParser(description="Generate Anki deck from UWorld JSON")
-    parser.add_argument(
-        "--input", default="data/question_bank.json", help="Path to extracted JSON"
-    )
-    parser.add_argument(
-        "--output", default="output/uworld_deck.apkg", help="Output .apkg path"
-    )
-    parser.add_argument(
-        "--deck-name", default="UWorld USMLE", help="Anki deck name"
-    )
-    args = parser.parse_args()
-
-    with open(args.input) as f:
-        questions = json.load(f)
-
-    # Full deck
+def generate_full_deck(questions, output_path="output/uworld_deck.apkg",
+                       deck_name="UWorld USMLE"):
+    """Generate the full Anki deck from questions."""
     model = create_model()
-    deck = genanki.Deck(DECK_ID, args.deck_name)
+    deck = genanki.Deck(DECK_ID, deck_name)
     media_files = set()
     media_dir = "media"
     os.makedirs(media_dir, exist_ok=True)
-    os.makedirs(os.path.dirname(args.output) or ".", exist_ok=True)
+    os.makedirs(os.path.dirname(output_path) or ".", exist_ok=True)
 
     for q in questions:
         question_html = process_images(q.get("questionHtml", ""), media_files, media_dir)
@@ -445,15 +431,42 @@ def main():
 
     package = genanki.Package(deck)
     package.media_files = list(media_files)
-    package.write_to_file(args.output)
+    package.write_to_file(output_path)
 
     print(f"Generated {len(questions)} notes, {len(media_files)} images embedded.")
-    print(f"Output: {args.output}")
+    print(f"Output: {output_path}")
+    return len(media_files)
 
-    # Condensed deck (if any summaries exist)
+
+def generate_all_decks(questions, output_path="output/uworld_deck.apkg",
+                       deck_name="UWorld USMLE"):
+    """Generate full deck and condensed deck (if summaries exist)."""
+    image_count = generate_full_deck(questions, output_path, deck_name)
+
     if any(q.get("aiSummary") for q in questions):
         print()
         generate_condensed_deck(questions)
+
+    return image_count
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Generate Anki deck from UWorld JSON")
+    parser.add_argument(
+        "--input", default="data/question_bank.json", help="Path to extracted JSON"
+    )
+    parser.add_argument(
+        "--output", default="output/uworld_deck.apkg", help="Output .apkg path"
+    )
+    parser.add_argument(
+        "--deck-name", default="UWorld USMLE", help="Anki deck name"
+    )
+    args = parser.parse_args()
+
+    with open(args.input) as f:
+        questions = json.load(f)
+
+    generate_all_decks(questions, args.output, args.deck_name)
 
 
 if __name__ == "__main__":

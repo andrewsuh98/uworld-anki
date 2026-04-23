@@ -23,18 +23,8 @@ load_dotenv()
 
 from playwright.sync_api import sync_playwright
 
-from generate_deck import (
-    DECK_ID,
-    UWorldNote,
-    build_tags,
-    create_model,
-    format_choices_back,
-    format_choices_front,
-    generate_condensed_deck,
-    process_images,
-)
+from generate_deck import generate_all_decks
 from summarize import summarize_new_questions
-import genanki
 
 EXTRACT_JS_PATH = os.path.join(os.path.dirname(__file__), "extract_all_questions.js")
 QUESTION_BANK_PATH = os.path.join(os.path.dirname(__file__), "data", "question_bank.json")
@@ -78,51 +68,6 @@ def extract_from_page(page):
         }}
     """)
     return result or []
-
-
-def generate_deck(all_questions, output_path="output/uworld_deck.apkg", deck_name="UWorld USMLE"):
-    """Generate an Anki .apkg from collected questions."""
-    model = create_model()
-    deck = genanki.Deck(DECK_ID, deck_name)
-    media_files = set()
-    media_dir = "media"
-    os.makedirs(media_dir, exist_ok=True)
-    os.makedirs(os.path.dirname(output_path) or ".", exist_ok=True)
-
-    for q in all_questions:
-        question_html = process_images(q.get("questionHtml", ""), media_files, media_dir)
-        explanation_html = process_images(q.get("explanationHtml", ""), media_files, media_dir)
-        choices_front = format_choices_front(q.get("choices", []))
-        choices_back = format_choices_back(q.get("choices", []))
-        tags = build_tags(q)
-
-        correct_answer = q.get("correctAnswer", "")
-        your_answer = q.get("selectedAnswer", "") or "N/A"
-        was_correct_class = "correct" if q.get("wasCorrect", True) else "incorrect"
-
-        note = UWorldNote(
-            model=model,
-            fields=[
-                q.get("questionId", ""),
-                question_html,
-                choices_front,
-                choices_back,
-                correct_answer,
-                q.get("educationalObjective", ""),
-                explanation_html,
-                q.get("topic", ""),
-                your_answer,
-                was_correct_class,
-            ],
-            tags=tags,
-        )
-        deck.add_note(note)
-
-    package = genanki.Package(deck)
-    package.media_files = list(media_files)
-    package.write_to_file(output_path)
-
-    return len(media_files)
 
 
 def ensure_chromium():
@@ -231,27 +176,15 @@ def main():
         print("ANTHROPIC_API_KEY not set. Skipping AI summarization.")
         print("  Set it to generate condensed cards: export ANTHROPIC_API_KEY=your-key")
 
-    # Generate full deck
+    # Generate decks
     print()
-    print("Generating full deck...")
-    output_path = "output/uworld_deck.apkg"
-    image_count = generate_deck(all_questions, output_path)
-
-    # Generate condensed deck (if any summaries exist)
-    has_summaries = any(q.get("aiSummary") for q in all_questions)
-    if has_summaries:
-        print()
-        print("Generating condensed deck...")
-        condensed_path = "output/uworld_condensed.apkg"
-        generate_condensed_deck(all_questions, condensed_path)
+    print("Generating decks...")
+    generate_all_decks(all_questions)
 
     print()
-    print(f"Done! {len(all_questions)} questions ({new_this_session} new this session), {image_count} images.")
-    print(f"Full deck: output/uworld_deck.apkg")
-    if has_summaries:
-        print(f"Condensed deck: output/uworld_condensed.apkg")
+    print(f"Done! {len(all_questions)} questions ({new_this_session} new this session).")
     print()
-    print("Import into Anki: File > Import > select the .apkg files")
+    print("Import into Anki: File > Import > select the .apkg files in output/")
 
 
 if __name__ == "__main__":
