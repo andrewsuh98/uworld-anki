@@ -7,6 +7,7 @@ import hashlib
 import json
 import os
 import re
+import urllib.request
 
 import genanki
 
@@ -190,39 +191,55 @@ class UWorldNote(genanki.Note):
 
 
 def process_images(html, media_files, media_dir):
-    """Extract base64 images from HTML, save to files, rewrite src attributes."""
-    def replace_data_uri(match):
-        full_tag = match.group(0)
-        data_uri = match.group(1)
+    """Extract images from HTML (base64 or URL), save to files, rewrite src attributes."""
 
-        # Parse data URI: data:image/jpeg;base64,/9j/4AAQ...
-        uri_match = re.match(r"data:image/(\w+);base64,(.+)", data_uri, re.DOTALL)
-        if not uri_match:
-            return full_tag
-
-        ext = uri_match.group(1)
+    def save_image(image_bytes, ext):
+        """Save image bytes to media dir, return filename."""
         if ext == "jpeg":
             ext = "jpg"
-        b64_data = uri_match.group(2)
-
-        try:
-            image_bytes = base64.b64decode(b64_data)
-        except Exception:
-            return full_tag
-
-        # Name based on content hash for deduplication
         content_hash = hashlib.md5(image_bytes).hexdigest()[:12]
         filename = f"uworld_{content_hash}.{ext}"
         filepath = os.path.join(media_dir, filename)
-
         if not os.path.exists(filepath):
             with open(filepath, "wb") as f:
                 f.write(image_bytes)
-
         media_files.add(filepath)
+        return filename
+
+    def replace_data_uri(match):
+        full_tag = match.group(0)
+        data_uri = match.group(1)
+        uri_match = re.match(r"data:image/(\w+);base64,(.+)", data_uri, re.DOTALL)
+        if not uri_match:
+            return full_tag
+        try:
+            image_bytes = base64.b64decode(uri_match.group(2))
+        except Exception:
+            return full_tag
+        filename = save_image(image_bytes, uri_match.group(1))
         return full_tag.replace(data_uri, filename)
 
-    return re.sub(r'<img[^>]+src="(data:image/[^"]+)"', replace_data_uri, html)
+    def replace_url(match):
+        full_tag = match.group(0)
+        url = match.group(1)
+        if url.startswith("data:") or not url.startswith("http"):
+            return full_tag
+        ext = url.rsplit(".", 1)[-1].lower() if "." in url else "jpg"
+        try:
+            req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                image_bytes = resp.read()
+            filename = save_image(image_bytes, ext)
+            return full_tag.replace(url, filename)
+        except Exception as e:
+            print(f"  Warning: could not download {url}: {e}")
+            return full_tag
+
+    # First pass: handle base64 data URIs
+    html = re.sub(r'<img[^>]+src="(data:image/[^"]+)"', replace_data_uri, html)
+    # Second pass: handle remote URLs
+    html = re.sub(r'<img[^>]+src="(https?://[^"]+)"', replace_url, html)
+    return html
 
 
 def extract_summary_table(explanation_html):

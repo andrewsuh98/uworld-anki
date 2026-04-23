@@ -5,28 +5,6 @@
 // Usage: paste this entire script into the console, then run:
 //   extractAllQuestions()
 
-async function convertImagesToBase64(html) {
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(html, 'text/html');
-  const imgs = doc.querySelectorAll('img');
-  for (const img of imgs) {
-    if (img.src.startsWith('data:')) continue;
-    try {
-      const resp = await fetch(img.src, { credentials: 'include' });
-      const blob = await resp.blob();
-      const dataUrl = await new Promise((resolve) => {
-        const reader = new FileReader();
-        reader.onloadend = () => resolve(reader.result);
-        reader.readAsDataURL(blob);
-      });
-      img.src = dataUrl;
-    } catch (e) {
-      console.warn('Failed to convert image:', img.src, e);
-    }
-  }
-  return doc.body.innerHTML;
-}
-
 function cleanInternalLinks(html) {
   // Replace javascript:void(0) links with bold text
   return html.replace(
@@ -35,7 +13,7 @@ function cleanInternalLinks(html) {
   );
 }
 
-async function extractCurrentQuestion() {
+function extractCurrentQuestion() {
   const detailsEl = document.querySelector('.question-details');
   const questionId = detailsEl
     ? detailsEl.textContent.match(/Question Id:\s*(\d+)/)?.[1] || ''
@@ -51,7 +29,6 @@ async function extractCurrentQuestion() {
   let questionHtml = questionTextEl ? questionTextEl.innerHTML.trim() : '';
   const questionPlain = questionTextEl ? questionTextEl.innerText.trim() : '';
   questionHtml = cleanInternalLinks(questionHtml);
-  questionHtml = await convertImagesToBase64(questionHtml);
 
   const choices = [];
   const radioInputs = document.querySelectorAll(
@@ -84,7 +61,6 @@ async function extractCurrentQuestion() {
   let explanationHtml = explanationEl ? explanationEl.innerHTML.trim() : '';
   const explanationPlain = explanationEl ? explanationEl.innerText.trim() : '';
   explanationHtml = cleanInternalLinks(explanationHtml);
-  explanationHtml = await convertImagesToBase64(explanationHtml);
 
   const eduMatch = explanationPlain.match(
     /Educational objective:\s*([\s\S]*?)(?:$|References|Copyright)/
@@ -212,7 +188,7 @@ async function extractAllQuestions() {
   for (let i = 1; i <= total; i++) {
     console.log(`Extracting question ${i} of ${total}...`);
 
-    const q = await extractCurrentQuestion();
+    const q = extractCurrentQuestion();
     allQuestions.push(q);
 
     if (i < total) {
