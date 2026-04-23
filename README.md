@@ -111,10 +111,11 @@ Cards are tagged for filtering in Anki:
 
 Questions are saved to `data/question_bank.json` and accumulate across sessions. Each run only extracts new questions. The deck is always generated from the full bank.
 
-To regenerate the deck without opening a browser:
+To regenerate decks without opening a browser:
 
 ```
-uv run python generate_deck.py
+uv run python generate_deck.py              # full deck
+uv run python generate_deck.py --condensed  # condensed deck
 ```
 
 ## Re-importing

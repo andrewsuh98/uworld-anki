@@ -38,14 +38,15 @@ If the explanation includes a summary table, include it. If there are images in 
 - Focus on differentiating similar diagnoses (NBME-style traps)
 - Use structured, readable formatting with bullet points
 - Do NOT use emojis
+- Output MUST be in HTML format (not markdown). Use `<b>`, `<ul>`, `<li>`, `<table>`, `<br>` tags. Do NOT use markdown syntax like `**bold**`, `- bullet`, or `| table |`.
 
 ## Output Format
 
-Respond with ONLY a JSON object, no other text:
+Respond with ONLY a JSON object, no other text. The front and back values must be HTML strings:
 
 ```json
 {
-  "front": "your condensed question here",
-  "back": "your structured answer here"
+  "front": "<p>your condensed question here</p>",
+  "back": "<b>Answer:</b> ...<br><b>Why correct:</b><ul><li>...</li></ul>"
 }
 ```

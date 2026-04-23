@@ -230,6 +230,8 @@ CONDENSED_FRONT = """\
 
 CONDENSED_BACK = """\
 <div class="condensed-card">
+  {{FrontSummary}}
+  <hr>
   <div><span class="topic-tag">{{Topic}}</span></div>
   <div class="correct-answer">{{CorrectAnswer}}</div>
   <div>{{BackSummary}}</div>
@@ -399,53 +401,61 @@ def main():
     parser.add_argument(
         "--deck-name", default="UWorld USMLE", help="Anki deck name"
     )
+    parser.add_argument(
+        "--condensed", action="store_true",
+        help="Generate condensed deck instead of full deck"
+    )
     args = parser.parse_args()
 
     with open(args.input) as f:
         questions = json.load(f)
 
-    model = create_model()
-    deck = genanki.Deck(DECK_ID, args.deck_name)
-    media_files = set()
-    media_dir = "media"
-    os.makedirs(media_dir, exist_ok=True)
-    os.makedirs(os.path.dirname(args.output) or ".", exist_ok=True)
+    if args.condensed:
+        output = args.output if args.output != "output/uworld_deck.apkg" else "output/uworld_condensed.apkg"
+        generate_condensed_deck(questions, output, args.deck_name if args.deck_name != "UWorld USMLE" else "UWorld USMLE Condensed")
+    else:
+        model = create_model()
+        deck = genanki.Deck(DECK_ID, args.deck_name)
+        media_files = set()
+        media_dir = "media"
+        os.makedirs(media_dir, exist_ok=True)
+        os.makedirs(os.path.dirname(args.output) or ".", exist_ok=True)
 
-    for q in questions:
-        question_html = process_images(q.get("questionHtml", ""), media_files, media_dir)
-        explanation_html = process_images(q.get("explanationHtml", ""), media_files, media_dir)
-        choices_front = format_choices_front(q.get("choices", []))
-        choices_back = format_choices_back(q.get("choices", []))
-        tags = build_tags(q)
+        for q in questions:
+            question_html = process_images(q.get("questionHtml", ""), media_files, media_dir)
+            explanation_html = process_images(q.get("explanationHtml", ""), media_files, media_dir)
+            choices_front = format_choices_front(q.get("choices", []))
+            choices_back = format_choices_back(q.get("choices", []))
+            tags = build_tags(q)
 
-        correct_answer = q.get("correctAnswer", "")
-        your_answer = q.get("selectedAnswer", "") or "N/A"
-        was_correct_class = "correct" if q.get("wasCorrect", True) else "incorrect"
+            correct_answer = q.get("correctAnswer", "")
+            your_answer = q.get("selectedAnswer", "") or "N/A"
+            was_correct_class = "correct" if q.get("wasCorrect", True) else "incorrect"
 
-        note = UWorldNote(
-            model=model,
-            fields=[
-                q.get("questionId", ""),
-                question_html,
-                choices_front,
-                choices_back,
-                correct_answer,
-                q.get("educationalObjective", ""),
-                explanation_html,
-                q.get("topic", ""),
-                your_answer,
-                was_correct_class,
-            ],
-            tags=tags,
-        )
-        deck.add_note(note)
+            note = UWorldNote(
+                model=model,
+                fields=[
+                    q.get("questionId", ""),
+                    question_html,
+                    choices_front,
+                    choices_back,
+                    correct_answer,
+                    q.get("educationalObjective", ""),
+                    explanation_html,
+                    q.get("topic", ""),
+                    your_answer,
+                    was_correct_class,
+                ],
+                tags=tags,
+            )
+            deck.add_note(note)
 
-    package = genanki.Package(deck)
-    package.media_files = list(media_files)
-    package.write_to_file(args.output)
+        package = genanki.Package(deck)
+        package.media_files = list(media_files)
+        package.write_to_file(args.output)
 
-    print(f"Generated {len(questions)} notes, {len(media_files)} images embedded.")
-    print(f"Output: {args.output}")
+        print(f"Generated {len(questions)} notes, {len(media_files)} images embedded.")
+        print(f"Output: {args.output}")
 
 
 if __name__ == "__main__":
