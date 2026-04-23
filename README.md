@@ -29,25 +29,25 @@ Then the interactive workflow starts:
 
 1. A browser window opens. Log in to your UWorld account.
 2. Navigate to a completed test review page.
-3. In the terminal, press `r` to extract the current test block.
-4. Navigate to another review page and press `r` again. Repeat as many times as you want.
+3. In the terminal, press `e` to extract the current test block.
+4. Navigate to another review page and press `e` again. Repeat as many times as you want.
 5. Press `d` when done. The script downloads images, generates the deck, and saves it.
 
 ```
-[r] Extract current review page
+[e] Extract current review page
 [d] Done, generate deck
-> r
+> e
 
   Extracting questions... 10 found, 10 new.
-  Total questions collected: 10
+  Total in bank: 10 (10 new this session)
 
-[r] Extract current review page
+[e] Extract current review page
 [d] Done, generate deck
 > d
 
 Downloading images and generating deck...
 
-Done! 10 notes created, 1 images embedded.
+Done! 10 notes in deck (10 new this session), 1 images embedded.
 Saved to: output/uworld_deck.apkg
 ```
 
@@ -64,15 +64,10 @@ Import `output/uworld_deck.apkg` into Anki via File > Import.
 
 ## Flashcard Structure
 
-Each question generates up to two cards:
+Each question generates one card:
 
-**Card 1: Question -> Answer**
 - Front: clinical vignette + answer choices (no hints)
 - Back: correct answer, your answer, educational objective, full explanation
-
-**Card 2: Topic Review** (only when a summary table exists)
-- Front: "What are the key features of: [Topic]?"
-- Back: summary table + educational objective
 
 ## Tags
 
@@ -81,6 +76,16 @@ Cards are tagged for filtering in Anki:
 - `System::Gastrointestinal_&_Nutrition`, etc.
 - `Topic::Autoimmune_hepatitis`, etc.
 - `Missed` for questions you got wrong
+
+## Question Bank
+
+Questions are saved to `data/question_bank.json` and accumulate across sessions. Each run only extracts new questions. The deck is always generated from the full bank.
+
+To regenerate the deck without opening a browser:
+
+```
+uv run python generate_deck.py
+```
 
 ## Re-importing
 

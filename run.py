@@ -13,7 +13,6 @@ from generate_deck import (
     UWorldNote,
     build_tags,
     create_model,
-    extract_summary_table,
     format_choices_back,
     format_choices_front,
     process_images,
@@ -76,7 +75,6 @@ def generate_deck(all_questions, output_path="output/uworld_deck.apkg", deck_nam
     for q in all_questions:
         question_html = process_images(q.get("questionHtml", ""), media_files, media_dir)
         explanation_html = process_images(q.get("explanationHtml", ""), media_files, media_dir)
-        summary_table = extract_summary_table(explanation_html)
         choices_front = format_choices_front(q.get("choices", []))
         choices_back = format_choices_back(q.get("choices", []))
         tags = build_tags(q)
@@ -95,7 +93,6 @@ def generate_deck(all_questions, output_path="output/uworld_deck.apkg", deck_nam
                 correct_answer,
                 q.get("educationalObjective", ""),
                 explanation_html,
-                summary_table,
                 q.get("topic", ""),
                 your_answer,
                 was_correct_class,

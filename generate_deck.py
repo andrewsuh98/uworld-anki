@@ -85,25 +85,6 @@ tr:first-child td {
   margin-top: 10px;
   line-height: 1.6;
 }
-.topic-name {
-  font-size: 1.4em;
-  font-weight: bold;
-  color: #1565c0;
-  text-align: center;
-  margin: 24px 0;
-}
-.topic-prompt {
-  text-align: center;
-  color: #666;
-  font-style: italic;
-  margin-top: 20px;
-}
-details summary {
-  cursor: pointer;
-  color: #1976d2;
-  font-weight: bold;
-  margin: 12px 0;
-}
 img {
   max-width: 100%;
   height: auto;
@@ -139,12 +120,6 @@ img {
   background: #1e1e2e;
   border-left-color: #5c8fd6;
 }
-.night_mode .topic-name {
-  color: #64b5f6;
-}
-.night_mode .topic-prompt {
-  color: #aaa;
-}
 """
 
 CARD1_FRONT = """\
@@ -170,23 +145,6 @@ CARD1_BACK = """\
 </div>
 """
 
-CARD2_FRONT = """\
-<div class="uworld-card">
-  <div class="topic-prompt">What are the key features of:</div>
-  <div class="topic-name">{{Topic}}</div>
-</div>
-"""
-
-CARD2_BACK = """\
-<div class="uworld-card">
-  <div class="topic-prompt">What are the key features of:</div>
-  <div class="topic-name">{{Topic}}</div>
-  <hr>
-  <div>{{SummaryTable}}</div>
-  <div class="edu-objective">{{EducationalObjective}}</div>
-</div>
-"""
-
 
 def create_model():
     return genanki.Model(
@@ -200,7 +158,6 @@ def create_model():
             {"name": "CorrectAnswer"},
             {"name": "EducationalObjective"},
             {"name": "ExplanationHTML"},
-            {"name": "SummaryTable"},
             {"name": "Topic"},
             {"name": "YourAnswer"},
             {"name": "WasCorrectClass"},
@@ -210,11 +167,6 @@ def create_model():
                 "name": "Question -> Answer",
                 "qfmt": CARD1_FRONT,
                 "afmt": CARD1_BACK,
-            },
-            {
-                "name": "Topic Review",
-                "qfmt": CARD2_FRONT,
-                "afmt": CARD2_BACK,
             },
         ],
         css=CSS,
@@ -279,11 +231,6 @@ def process_images(html, media_files, media_dir):
     return html
 
 
-def extract_summary_table(explanation_html):
-    """Extract the first table from the explanation (usually the summary table)."""
-    match = re.search(r"<table[^>]*>.*?</table>", explanation_html, re.DOTALL)
-    return match.group(0) if match else ""
-
 
 def format_choices_front(choices):
     """Format answer choices for the card front (no hints)."""
@@ -324,7 +271,7 @@ def build_tags(question):
 def main():
     parser = argparse.ArgumentParser(description="Generate Anki deck from UWorld JSON")
     parser.add_argument(
-        "--input", default="questions.json", help="Path to extracted JSON"
+        "--input", default="data/question_bank.json", help="Path to extracted JSON"
     )
     parser.add_argument(
         "--output", default="output/uworld_deck.apkg", help="Output .apkg path"
@@ -347,7 +294,6 @@ def main():
     for q in questions:
         question_html = process_images(q.get("questionHtml", ""), media_files, media_dir)
         explanation_html = process_images(q.get("explanationHtml", ""), media_files, media_dir)
-        summary_table = extract_summary_table(explanation_html)
         choices_front = format_choices_front(q.get("choices", []))
         choices_back = format_choices_back(q.get("choices", []))
         tags = build_tags(q)
@@ -366,7 +312,6 @@ def main():
                 correct_answer,
                 q.get("educationalObjective", ""),
                 explanation_html,
-                summary_table,
                 q.get("topic", ""),
                 your_answer,
                 was_correct_class,
@@ -379,8 +324,7 @@ def main():
     package.media_files = list(media_files)
     package.write_to_file(args.output)
 
-    print(f"Generated {len(questions)} notes ({len(questions)} Question cards + topic review cards where summary tables exist)")
-    print(f"Images embedded: {len(media_files)}")
+    print(f"Generated {len(questions)} notes, {len(media_files)} images embedded.")
     print(f"Output: {args.output}")
 
 
