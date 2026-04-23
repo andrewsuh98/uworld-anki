@@ -108,6 +108,43 @@ img {
   max-width: 100%;
   height: auto;
 }
+
+/* Dark mode */
+.night_mode .uworld-card {
+  color: #e0e0e0;
+}
+.night_mode tr:first-child td {
+  background: #2a3050;
+}
+.night_mode td, .night_mode th {
+  border-color: #555;
+}
+.night_mode .topic-tag {
+  background: #2a3050;
+  color: #90a4f8;
+}
+.night_mode .choice-correct {
+  color: #66bb6a;
+}
+.night_mode .correct-answer {
+  color: #66bb6a;
+}
+.night_mode .your-answer.incorrect {
+  color: #ef5350;
+}
+.night_mode .your-answer.correct {
+  color: #66bb6a;
+}
+.night_mode .edu-objective {
+  background: #1e1e2e;
+  border-left-color: #5c8fd6;
+}
+.night_mode .topic-name {
+  color: #64b5f6;
+}
+.night_mode .topic-prompt {
+  color: #aaa;
+}
 """
 
 CARD1_FRONT = """\

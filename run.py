@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """UWorld to Anki: one-command extraction and deck generation."""
 
+import json
 import os
 import subprocess
 import sys
@@ -20,8 +21,26 @@ from generate_deck import (
 import genanki
 
 EXTRACT_JS_PATH = os.path.join(os.path.dirname(__file__), "extract_all_questions.js")
+QUESTION_BANK_PATH = os.path.join(os.path.dirname(__file__), "data", "question_bank.json")
 
 UWORLD_REVIEW_URL_PATTERN = "apps.uworld.com"
+
+
+def load_question_bank():
+    """Load existing question bank from disk, returning (list, set of IDs)."""
+    if os.path.exists(QUESTION_BANK_PATH):
+        with open(QUESTION_BANK_PATH) as f:
+            questions = json.load(f)
+        seen_ids = {q["questionId"] for q in questions if q.get("questionId")}
+        return questions, seen_ids
+    return [], set()
+
+
+def save_question_bank(questions):
+    """Save question bank to disk."""
+    os.makedirs(os.path.dirname(QUESTION_BANK_PATH), exist_ok=True)
+    with open(QUESTION_BANK_PATH, "w") as f:
+        json.dump(questions, f, indent=2)
 
 
 def load_extraction_script():
@@ -107,14 +126,17 @@ def ensure_chromium():
 
 
 def main():
-    all_questions = []
-    seen_ids = set()
+    all_questions, seen_ids = load_question_bank()
 
     print("UWorld to Anki Extractor")
     print("=" * 40)
+    if all_questions:
+        print(f"Question bank loaded: {len(all_questions)} existing questions")
     print()
 
     ensure_chromium()
+
+    new_this_session = 0
 
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=False)
@@ -128,12 +150,11 @@ def main():
         print()
 
         while True:
-            print("[r] Extract current review page")
+            print("[e] Extract current review page")
             print("[d] Done, generate deck")
             choice = input("> ").strip().lower()
 
-            if choice == "r":
-                # Check that the page is on UWorld
+            if choice == "e":
                 if UWORLD_REVIEW_URL_PATTERN not in page.url:
                     print(f"  Current URL: {page.url}")
                     print("  Does not look like a UWorld page. Navigate to a test review page first.")
@@ -154,7 +175,6 @@ def main():
                     print()
                     continue
 
-                # Deduplicate by question ID
                 new_count = 0
                 for q in questions:
                     qid = q.get("questionId", "")
@@ -164,33 +184,35 @@ def main():
                         new_count += 1
 
                 skipped = len(questions) - new_count
+                new_this_session += new_count
                 print(f" {len(questions)} found, {new_count} new.")
                 if skipped > 0:
                     print(f"  ({skipped} duplicates skipped)")
-                print(f"  Total questions collected: {len(all_questions)}")
+                print(f"  Total in bank: {len(all_questions)} ({new_this_session} new this session)")
+
+                save_question_bank(all_questions)
                 print()
 
             elif choice == "d":
                 if not all_questions:
-                    print("  No questions collected yet. Extract some first.")
+                    print("  No questions in the bank. Extract some first.")
                     print()
                     continue
                 break
 
             else:
-                print("  Invalid choice. Enter 'r' or 'd'.")
+                print("  Invalid choice. Enter 'e' or 'd'.")
                 print()
 
         browser.close()
 
-    # Generate the deck
     print()
     print("Downloading images and generating deck...")
     output_path = "output/uworld_deck.apkg"
     image_count = generate_deck(all_questions, output_path)
 
     print()
-    print(f"Done! {len(all_questions)} notes created, {image_count} images embedded.")
+    print(f"Done! {len(all_questions)} notes in deck ({new_this_session} new this session), {image_count} images embedded.")
     print(f"Saved to: {output_path}")
     print()
     print("Import into Anki: File > Import > select the .apkg file")

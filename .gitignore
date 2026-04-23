@@ -7,6 +7,7 @@ uworld_rendered.html
 
 # Extracted question data (personal/copyrighted content)
 questions.json
+data/
 
 # Generated output
 media/
