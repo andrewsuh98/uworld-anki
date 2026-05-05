@@ -46,6 +46,7 @@ def load_extraction_script():
     return js
 
 
+
 def extract_from_page(page):
     """Inject the extraction script and run it, returning the question data."""
     js_code = load_extraction_script()
@@ -103,8 +104,9 @@ def main():
             choice = input("> ").strip().lower()
 
             if choice == "e":
-                if UWORLD_REVIEW_URL_PATTERN not in page.url:
-                    print(f"  Current URL: {page.url}")
+                current_url = page.evaluate("window.location.href")
+                if UWORLD_REVIEW_URL_PATTERN not in current_url:
+                    print(f"  Current URL: {current_url}")
                     print("  Does not look like a UWorld page. Navigate to a test review page first.")
                     print()
                     continue

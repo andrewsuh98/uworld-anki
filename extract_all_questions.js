@@ -20,7 +20,7 @@ function extractCurrentQuestion() {
     : '';
 
   const itemMatch = detailsEl
-    ? detailsEl.textContent.match(/Item\s+(\d+)\s+of\s+(\d+)/)
+    ? detailsEl.textContent.match(/Item:?\s+(\d+)\s+of\s+(\d+)/)
     : null;
   const itemNumber = itemMatch ? parseInt(itemMatch[1]) : null;
   const totalItems = itemMatch ? parseInt(itemMatch[2]) : null;
@@ -148,7 +148,7 @@ function waitForQuestionLoad(expectedItem, maxWait = 5000) {
     const check = () => {
       const detailsEl = document.querySelector('.question-details');
       const currentItem = detailsEl
-        ? detailsEl.textContent.match(/Item\s+(\d+)/)?.[1]
+        ? detailsEl.textContent.match(/Item:?\s+(\d+)/)?.[1]
         : null;
       if (currentItem && parseInt(currentItem) === expectedItem) {
         // Wait a bit more for content to render
@@ -170,7 +170,7 @@ async function extractAllQuestions() {
   // First, figure out total questions from current page
   const detailsEl = document.querySelector('.question-details');
   const totalMatch = detailsEl
-    ? detailsEl.textContent.match(/Item\s+\d+\s+of\s+(\d+)/)
+    ? detailsEl.textContent.match(/Item:?\s+\d+\s+of\s+(\d+)/)
     : null;
   const total = totalMatch ? parseInt(totalMatch[1]) : 0;
 
