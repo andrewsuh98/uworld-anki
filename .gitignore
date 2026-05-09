@@ -4,6 +4,7 @@
 # Raw HTML dumps (large, personal data)
 uworld_page.html
 uworld_rendered.html
+amboss.html
 
 # Extracted question data (personal/copyrighted content)
 questions.json

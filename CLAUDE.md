@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-Extract UWorld USMLE test review questions and generate Anki flashcard decks. Users run `uv run run.py`, log into UWorld in the Playwright browser, navigate to review pages, and extract questions interactively. The question bank accumulates across sessions.
+Extract UWorld and AMBOSS USMLE test review questions and generate Anki flashcard decks. Users run `uv run run.py`, select a platform, log in via the Playwright browser, navigate to review pages, and extract questions interactively. Each platform has its own question bank that accumulates across sessions.
 
 ## Tech Stack
 
@@ -18,8 +18,10 @@ Extract UWorld USMLE test review questions and generate Anki flashcard decks. Us
 - `generate_deck.py` - Anki deck generation. Full deck and condensed deck models, card templates, CSS, image processing, tag building. Also runnable standalone: `uv run python generate_deck.py`
 - `summarize.py` - AI summarization using Claude API. Loads prompt from `prompts/summarize.md`, processes only questions without existing `aiSummary` field.
 - `prompts/summarize.md` - Editable prompt template for Claude. Controls the condensed card format.
-- `extract_all_questions.js` - Injected into UWorld pages via Playwright. Navigates through questions and extracts DOM content.
-- `data/question_bank.json` - Persistent question bank. Accumulates across sessions, deduplicated by question ID. Stores AI summaries alongside raw data.
+- `extract_uworld_questions.js` - Injected into UWorld pages via Playwright. Navigates through questions and extracts DOM content.
+- `extract_amboss_questions.js` - Injected into AMBOSS pages via Playwright. Navigates through questions, expands all explanations, and extracts DOM content.
+- `data/uworld_question_bank.json` - UWorld question bank. Accumulates across sessions, deduplicated by question ID. Stores AI summaries alongside raw data.
+- `data/amboss_question_bank.json` - AMBOSS question bank. Same format as UWorld.
 - `output/` - Generated .apkg files (full deck and condensed deck).
 - `media/` - Downloaded images, deduplicated by content hash.
 

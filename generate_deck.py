@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Convert UWorld extracted JSON into an Anki .apkg deck."""
+"""Convert extracted question JSON into Anki .apkg decks."""
 
 import argparse
 import base64
@@ -16,6 +16,42 @@ MODEL_ID = 1607392319
 DECK_ID = 2044571848
 CONDENSED_MODEL_ID = 1834927156
 CONDENSED_DECK_ID = 1592048371
+
+AMBOSS_MODEL_ID = 1743829465
+AMBOSS_DECK_ID = 1356920487
+AMBOSS_CONDENSED_MODEL_ID = 1928374650
+AMBOSS_CONDENSED_DECK_ID = 1467283950
+
+PLATFORM_CONFIG = {
+    "uworld": {
+        "model_id": MODEL_ID,
+        "deck_id": DECK_ID,
+        "condensed_model_id": CONDENSED_MODEL_ID,
+        "condensed_deck_id": CONDENSED_DECK_ID,
+        "model_name": "UWorld USMLE",
+        "deck_name": "UWorld USMLE",
+        "condensed_model_name": "UWorld USMLE Condensed",
+        "condensed_deck_name": "UWorld USMLE Condensed",
+        "output_full": "output/uworld_deck.apkg",
+        "output_condensed": "output/uworld_condensed.apkg",
+        "image_prefix": "uworld",
+        "guid_namespace": "uworld",
+    },
+    "amboss": {
+        "model_id": AMBOSS_MODEL_ID,
+        "deck_id": AMBOSS_DECK_ID,
+        "condensed_model_id": AMBOSS_CONDENSED_MODEL_ID,
+        "condensed_deck_id": AMBOSS_CONDENSED_DECK_ID,
+        "model_name": "AMBOSS USMLE",
+        "deck_name": "AMBOSS USMLE",
+        "condensed_model_name": "AMBOSS USMLE Condensed",
+        "condensed_deck_name": "AMBOSS USMLE Condensed",
+        "output_full": "output/amboss_deck.apkg",
+        "output_condensed": "output/amboss_condensed.apkg",
+        "image_prefix": "amboss",
+        "guid_namespace": "amboss",
+    },
+}
 
 CSS = """\
 .uworld-card {
@@ -148,10 +184,10 @@ CARD1_BACK = """\
 """
 
 
-def create_model():
+def create_model(model_id=MODEL_ID, model_name="UWorld USMLE"):
     return genanki.Model(
-        MODEL_ID,
-        "UWorld USMLE",
+        model_id,
+        model_name,
         fields=[
             {"name": "QuestionID"},
             {"name": "QuestionHTML"},
@@ -175,16 +211,18 @@ def create_model():
     )
 
 
-class UWorldNote(genanki.Note):
-    @property
-    def guid(self):
-        return genanki.guid_for("uworld", self.fields[0])
+def make_note_class(guid_namespace):
+    """Create a Note subclass with a specific GUID namespace."""
+    class PlatformNote(genanki.Note):
+        _namespace = guid_namespace
+        @property
+        def guid(self):
+            return genanki.guid_for(self._namespace, self.fields[0])
+    return PlatformNote
 
 
-class CondensedNote(genanki.Note):
-    @property
-    def guid(self):
-        return genanki.guid_for("uworld-condensed", self.fields[0])
+UWorldNote = make_note_class("uworld")
+CondensedNote = make_note_class("uworld-condensed")
 
 
 CONDENSED_CSS = """\
@@ -308,10 +346,11 @@ CONDENSED_BACK = """\
 """
 
 
-def create_condensed_model():
+def create_condensed_model(model_id=CONDENSED_MODEL_ID,
+                           model_name="UWorld USMLE Condensed"):
     return genanki.Model(
-        CONDENSED_MODEL_ID,
-        "UWorld USMLE Condensed",
+        model_id,
+        model_name,
         fields=[
             {"name": "QuestionID"},
             {"name": "FrontSummary"},
@@ -335,10 +374,13 @@ def create_condensed_model():
 
 
 def generate_condensed_deck(questions, output_path="output/uworld_condensed.apkg",
-                            deck_name="UWorld USMLE Condensed"):
+                            deck_name="UWorld USMLE Condensed",
+                            platform="uworld"):
     """Generate a condensed Anki deck from AI-summarized questions."""
-    model = create_condensed_model()
-    deck = genanki.Deck(CONDENSED_DECK_ID, deck_name)
+    cfg = PLATFORM_CONFIG[platform]
+    model = create_condensed_model(cfg["condensed_model_id"], cfg["condensed_model_name"])
+    deck = genanki.Deck(cfg["condensed_deck_id"], deck_name)
+    NoteClass = make_note_class(f"{cfg['guid_namespace']}-condensed")
     media_files = set()
     media_dir = "media"
     os.makedirs(media_dir, exist_ok=True)
@@ -351,11 +393,13 @@ def generate_condensed_deck(questions, output_path="output/uworld_condensed.apkg
             continue
 
         tags = build_tags(q)
-        question_html = process_images(q.get("questionHtml", ""), media_files, media_dir)
-        explanation_html = process_images(q.get("explanationHtml", ""), media_files, media_dir)
+        question_html = process_images(q.get("questionHtml", ""), media_files, media_dir,
+                                       image_prefix=cfg["image_prefix"])
+        explanation_html = process_images(q.get("explanationHtml", ""), media_files, media_dir,
+                                          image_prefix=cfg["image_prefix"])
         choices_back = format_choices_back(q.get("choices", []))
 
-        note = CondensedNote(
+        note = NoteClass(
             model=model,
             fields=[
                 q.get("questionId", ""),
@@ -385,7 +429,7 @@ def generate_condensed_deck(questions, output_path="output/uworld_condensed.apkg
     return generated
 
 
-def process_images(html, media_files, media_dir):
+def process_images(html, media_files, media_dir, image_prefix="uworld"):
     """Extract images from HTML (base64 or URL), save to files, rewrite src attributes."""
 
     def save_image(image_bytes, ext):
@@ -393,7 +437,7 @@ def process_images(html, media_files, media_dir):
         if ext == "jpeg":
             ext = "jpg"
         content_hash = hashlib.md5(image_bytes).hexdigest()[:12]
-        filename = f"uworld_{content_hash}.{ext}"
+        filename = f"{image_prefix}_{content_hash}.{ext}"
         filepath = os.path.join(media_dir, filename)
         if not os.path.exists(filepath):
             with open(filepath, "wb") as f:
@@ -471,22 +515,31 @@ def build_tags(question):
             tags.append(f"{prefix}::{sanitized}")
     if not question.get("wasCorrect", True):
         tags.append("Missed")
+    difficulty = question.get("difficulty")
+    if difficulty is not None:
+        tags.append(f"Difficulty::{difficulty}")
+    source = question.get("source", "uworld")
+    tags.append(f"Source::{source.capitalize()}")
     return tags
 
 
 def generate_full_deck(questions, output_path="output/uworld_deck.apkg",
-                       deck_name="UWorld USMLE"):
+                       deck_name="UWorld USMLE", platform="uworld"):
     """Generate the full Anki deck from questions."""
-    model = create_model()
-    deck = genanki.Deck(DECK_ID, deck_name)
+    cfg = PLATFORM_CONFIG[platform]
+    model = create_model(cfg["model_id"], cfg["model_name"])
+    deck = genanki.Deck(cfg["deck_id"], deck_name)
+    NoteClass = make_note_class(cfg["guid_namespace"])
     media_files = set()
     media_dir = "media"
     os.makedirs(media_dir, exist_ok=True)
     os.makedirs(os.path.dirname(output_path) or ".", exist_ok=True)
 
     for q in questions:
-        question_html = process_images(q.get("questionHtml", ""), media_files, media_dir)
-        explanation_html = process_images(q.get("explanationHtml", ""), media_files, media_dir)
+        question_html = process_images(q.get("questionHtml", ""), media_files, media_dir,
+                                       image_prefix=cfg["image_prefix"])
+        explanation_html = process_images(q.get("explanationHtml", ""), media_files, media_dir,
+                                          image_prefix=cfg["image_prefix"])
         choices_front = format_choices_front(q.get("choices", []))
         choices_back = format_choices_back(q.get("choices", []))
         tags = build_tags(q)
@@ -495,7 +548,7 @@ def generate_full_deck(questions, output_path="output/uworld_deck.apkg",
         your_answer = q.get("selectedAnswer", "") or "N/A"
         was_correct_class = "correct" if q.get("wasCorrect", True) else "incorrect"
 
-        note = UWorldNote(
+        note = NoteClass(
             model=model,
             fields=[
                 q.get("questionId", ""),
@@ -522,35 +575,43 @@ def generate_full_deck(questions, output_path="output/uworld_deck.apkg",
     return len(media_files)
 
 
-def generate_all_decks(questions, output_path="output/uworld_deck.apkg",
-                       deck_name="UWorld USMLE"):
+def generate_all_decks(questions, output_path=None, deck_name=None, platform="uworld"):
     """Generate full deck and condensed deck (if summaries exist)."""
-    image_count = generate_full_deck(questions, output_path, deck_name)
+    cfg = PLATFORM_CONFIG[platform]
+    output_path = output_path or cfg["output_full"]
+    deck_name = deck_name or cfg["deck_name"]
+
+    image_count = generate_full_deck(questions, output_path, deck_name, platform=platform)
 
     if any(q.get("aiSummary") for q in questions):
         print()
-        generate_condensed_deck(questions)
+        generate_condensed_deck(questions, cfg["output_condensed"],
+                                cfg["condensed_deck_name"], platform=platform)
 
     return image_count
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Generate Anki deck from UWorld JSON")
+    parser = argparse.ArgumentParser(description="Generate Anki deck from extracted JSON")
     parser.add_argument(
-        "--input", default="data/question_bank.json", help="Path to extracted JSON"
+        "--platform", default="uworld", choices=["uworld", "amboss"],
+        help="Platform (uworld or amboss)",
     )
-    parser.add_argument(
-        "--output", default="output/uworld_deck.apkg", help="Output .apkg path"
-    )
-    parser.add_argument(
-        "--deck-name", default="UWorld USMLE", help="Anki deck name"
-    )
+    parser.add_argument("--input", default=None, help="Path to extracted JSON")
+    parser.add_argument("--output", default=None, help="Output .apkg path")
+    parser.add_argument("--deck-name", default=None, help="Anki deck name")
     args = parser.parse_args()
 
-    with open(args.input) as f:
+    default_inputs = {
+        "uworld": "data/uworld_question_bank.json",
+        "amboss": "data/amboss_question_bank.json",
+    }
+    input_path = args.input or default_inputs[args.platform]
+
+    with open(input_path) as f:
         questions = json.load(f)
 
-    generate_all_decks(questions, args.output, args.deck_name)
+    generate_all_decks(questions, args.output, args.deck_name, platform=args.platform)
 
 
 if __name__ == "__main__":

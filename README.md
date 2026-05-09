@@ -115,7 +115,7 @@ Cards are tagged for filtering in Anki:
 
 ## Question Bank
 
-Questions are saved to `data/question_bank.json` and accumulate across sessions. Each run only extracts new questions. The deck is always generated from the full bank.
+Questions are saved to `data/uworld_question_bank.json` (or `data/amboss_question_bank.json` for AMBOSS) and accumulate across sessions. Each run only extracts new questions. The deck is always generated from the full bank.
 
 To regenerate decks without opening a browser:
 

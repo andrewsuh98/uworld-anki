@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""UWorld to Anki: one-command extraction and deck generation."""
+"""UWorld/AMBOSS to Anki: one-command extraction and deck generation."""
 
 import json
 import os
@@ -15,42 +15,57 @@ from playwright.sync_api import sync_playwright
 from generate_deck import generate_all_decks
 from summarize import summarize_new_questions
 
-EXTRACT_JS_PATH = os.path.join(os.path.dirname(__file__), "extract_all_questions.js")
-QUESTION_BANK_PATH = os.path.join(os.path.dirname(__file__), "data", "question_bank.json")
+BASE_DIR = os.path.dirname(__file__)
 
-UWORLD_REVIEW_URL_PATTERN = "apps.uworld.com"
+PLATFORMS = {
+    "uworld": {
+        "name": "UWorld",
+        "login_url": "https://uworld.com/app/index.html#/login/",
+        "url_pattern": "apps.uworld.com",
+        "extract_js": os.path.join(BASE_DIR, "extract_uworld_questions.js"),
+        "question_bank": os.path.join(BASE_DIR, "data", "uworld_question_bank.json"),
+    },
+    "amboss": {
+        "name": "AMBOSS",
+        "login_url": "https://next.amboss.com/us",
+        "url_pattern": "next.amboss.com",
+        "extract_js": os.path.join(BASE_DIR, "extract_amboss_questions.js"),
+        "question_bank": os.path.join(BASE_DIR, "data", "amboss_question_bank.json"),
+    },
+}
+
+QUESTION_BANK_PATH = PLATFORMS["uworld"]["question_bank"]
 
 
-def load_question_bank():
+def load_question_bank(path=None):
     """Load existing question bank from disk, returning (list, set of IDs)."""
-    if os.path.exists(QUESTION_BANK_PATH):
-        with open(QUESTION_BANK_PATH) as f:
+    path = path or QUESTION_BANK_PATH
+    if os.path.exists(path):
+        with open(path) as f:
             questions = json.load(f)
         seen_ids = {q["questionId"] for q in questions if q.get("questionId")}
         return questions, seen_ids
     return [], set()
 
 
-def save_question_bank(questions):
+def save_question_bank(questions, path=None):
     """Save question bank to disk."""
-    os.makedirs(os.path.dirname(QUESTION_BANK_PATH), exist_ok=True)
-    with open(QUESTION_BANK_PATH, "w") as f:
+    path = path or QUESTION_BANK_PATH
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w") as f:
         json.dump(questions, f, indent=2)
 
 
-def load_extraction_script():
-    with open(EXTRACT_JS_PATH) as f:
-        js = f.read()
-    # Remove the console.log at the end and the extractAllQuestions() call instructions
-    # We'll call extractAllQuestions() ourselves
-    return js
+def load_extraction_script(path):
+    with open(path) as f:
+        return f.read()
 
 
-
-def extract_from_page(page):
+def extract_from_page(page, extract_js_path):
     """Inject the extraction script and run it, returning the question data."""
-    js_code = load_extraction_script()
-    # Inject the script functions, then call extractAllQuestions()
+    js_code = load_extraction_script(extract_js_path)
+    # 5 min timeout: extraction navigates through all questions sequentially
+    page.set_default_timeout(300_000)
     result = page.evaluate(f"""
         async () => {{
             {js_code}
@@ -74,13 +89,32 @@ def ensure_chromium():
         print()
 
 
-def main():
-    all_questions, seen_ids = load_question_bank()
+def select_platform():
+    """Prompt the user to choose a platform."""
+    print("Select platform:")
+    print("  [1] UWorld")
+    print("  [2] AMBOSS")
+    while True:
+        choice = input("> ").strip()
+        if choice == "1":
+            return PLATFORMS["uworld"]
+        if choice == "2":
+            return PLATFORMS["amboss"]
+        print("  Enter 1 or 2.")
 
-    print("UWorld to Anki Extractor")
+
+def main():
+    print("QBank to Anki Extractor")
     print("=" * 40)
+    print()
+
+    platform = select_platform()
+    platform_name = platform["name"]
+    bank_path = platform["question_bank"]
+
+    all_questions, seen_ids = load_question_bank(bank_path)
     if all_questions:
-        print(f"Question bank loaded: {len(all_questions)} existing questions")
+        print(f"{platform_name} question bank: {len(all_questions)} existing questions")
     print()
 
     ensure_chromium()
@@ -93,9 +127,9 @@ def main():
             viewport={"width": 1400, "height": 900},
         )
         page = context.new_page()
-        page.goto("https://uworld.com/app/index.html#/login/")
+        page.goto(platform["login_url"])
 
-        print("Browser opened. Log in to UWorld and navigate to a test review page.")
+        print(f"Browser opened. Log in to {platform_name} and navigate to a review page.")
         print()
 
         while True:
@@ -105,15 +139,15 @@ def main():
 
             if choice == "e":
                 current_url = page.evaluate("window.location.href")
-                if UWORLD_REVIEW_URL_PATTERN not in current_url:
+                if platform["url_pattern"] not in current_url:
                     print(f"  Current URL: {current_url}")
-                    print("  Does not look like a UWorld page. Navigate to a test review page first.")
+                    print(f"  Does not look like a {platform_name} page. Navigate to a review page first.")
                     print()
                     continue
 
                 print("  Extracting questions...", end="", flush=True)
                 try:
-                    questions = extract_from_page(page)
+                    questions = extract_from_page(page, platform["extract_js"])
                 except Exception as e:
                     print(f"\n  Error during extraction: {e}")
                     print("  Make sure you are on a test review page (not the test list).")
@@ -140,7 +174,7 @@ def main():
                     print(f"  ({skipped} duplicates skipped)")
                 print(f"  Total in bank: {len(all_questions)} ({new_this_session} new this session)")
 
-                save_question_bank(all_questions)
+                save_question_bank(all_questions, bank_path)
                 print()
 
             elif choice == "d":
@@ -156,13 +190,16 @@ def main():
 
         browser.close()
 
+    # Determine platform key for deck generation
+    platform_key = "amboss" if platform_name == "AMBOSS" else "uworld"
+
     # AI summarization (if API key is set)
     print()
     if os.environ.get("ANTHROPIC_API_KEY"):
         print("Running AI summarization...")
         summarized_count = summarize_new_questions(all_questions)
         if summarized_count > 0:
-            save_question_bank(all_questions)
+            save_question_bank(all_questions, bank_path)
     else:
         print("ANTHROPIC_API_KEY not set. Skipping AI summarization.")
         print("  Set it to generate condensed cards: export ANTHROPIC_API_KEY=your-key")
@@ -170,7 +207,7 @@ def main():
     # Generate decks
     print()
     print("Generating decks...")
-    generate_all_decks(all_questions)
+    generate_all_decks(all_questions, platform=platform_key)
 
     print()
     print(f"Done! {len(all_questions)} questions ({new_this_session} new this session).")
